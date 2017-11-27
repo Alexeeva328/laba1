@@ -1,0 +1,138 @@
+#include <string>
+#include <iostream>
+#include <conio.h>
+#include <io.h>
+using namespace std;
+class FileItem
+{
+string name;
+string path;
+public:
+FileItem () { };
+FileItem (const string& name, const string& path) {
+this->name = name;
+this->path = path;
+}
+void show() {
+cout<<"File: "<<name<<endl;
+cout << "In directory: " << path <<endl <<endl;
+}
+};
+
+class FileIterator
+{
+FileIterator* subIterator;
+string fileMask;
+intptr_t FindHandle;
+FileItem* cache;
+FileItem* search(const string& fileMask) {
+_finddata_t FindData;
+
+string defFileMask = fileMask.substr(0, fileMask.find_last_of('\\') + 1) + "*.*";
+if (FindHandle == 0)
+FindHandle = _findfirst(defFileMask.c_str(), &FindData);
+while (_findnext(FindHandle, &FindData) != -1L)
+{
+if ((FindData.name == string(".")) || (FindData.name == string(".." )))
+{
+continue;
+}
+if (IsDirectory(FindData))
+{
+string newFileMask = fileMask;
+newFileMask.insert(fileMask.find_last_of('\\') + 1, string(FindData.name) + '\\');
+this->subIterator = new FileIterator(newFileMask);
+while (this->subIterator->hasMore())
+this->subIterator->next()->show();
+}
+if (compareToMask(fileMask.substr(fileMask.find_last_of('\\') + 1), string(FindData.name)))
+{
+string name = string(FindData.name);
+string path = defFileMask.substr(0, defFileMask.find_last_of('\\'));
+if (path == "*.*")
+path = "root";
+cache = new FileItem(name, path);
+return cache;
+}
+}
+_findclose(FindHandle);
+return NULL;
+
+}
+
+inline bool IsDirectory(const _finddata_t &FindData) {
+return ((FindData.attrib & _A_SUBDIR) != 0);
+
+}
+bool compareToMask(const string& mask, const string& file) {
+int pos = 0;
+for (int i = 0; i < mask.length(); i++)
+for (int j = pos; j < file.length(); j++)
+{
+pos = j;
+if (mask[i] == '*')
+{
+if (file[j] == '.')
+{
+break;
+}
+else
+continue;
+}
+else if ((mask[i] == '?') || (mask[i] == file[j]))
+{
+pos ++;
+break;
+}
+return false;
+}
+return true;
+}
+
+public :
+FileIterator () : FindHandle(NULL) {};
+FileIterator (const string& fileMask) {
+this->fileMask = fileMask;
+FindHandle = 0;
+}
+
+void setFileMask(const string& mask) {
+fileMask = mask;
+}
+bool hasMore() {
+cache = search(fileMask);
+if (this->cache != NULL)
+return true;
+else
+return false;
+
+}
+FileItem* next() {
+FileItem* res = cache;
+cache = NULL;
+return res;
+
+}
+};
+
+int main(int argc, char* argv[])
+{
+string fileMask;
+FileIterator * it = new FileIterator();
+
+if (argc > 1)
+fileMask = argv[1];
+else
+{
+cout << " Enter a directory and filt to find ( after '\ ' is file ) : ";
+cin>> fileMask;
+cout << endl;
+if (!fileMask.length())
+return 1;
+}
+it->setFileMask(fileMask);
+while (it->hasMore())
+it->next()->show();
+getch();
+0;
+}
